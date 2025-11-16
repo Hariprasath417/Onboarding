@@ -15,27 +15,13 @@ const PORT = process.env.PORT || 4000;
 connectDB();
 
 // Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/form', formRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
-});
 
 // 404 handler
 app.use('*', (req, res) => {

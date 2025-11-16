@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
-// Create axios instance
 const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
@@ -10,45 +9,25 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Handle auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+// Helper function to get headers with token
+const getHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 // Auth API
 export const authAPI = {
   signup: (userData) => api.post('/auth/signup', userData),
   login: (credentials) => api.post('/auth/login', credentials),
-  getMe: () => api.get('/auth/me'),
+  getMe: () => api.get('/auth/me', { headers: getHeaders() }),
 };
 
 // Form API
 export const formAPI = {
-  getForm: () => api.get('/form'),
-  getStep: (stepNumber) => api.get(`/form/step/${stepNumber}`),
-  updateStep: (stepNumber, data) => api.post('/form/step', { stepNumber, data }),
-  submitForm: () => api.post('/form/submit'),
+  getForm: () => api.get('/form', { headers: getHeaders() }),
+  getStep: (stepNumber) => api.get(`/form/step/${stepNumber}`, { headers: getHeaders() }),
+  updateStep: (stepNumber, data) => api.post('/form/step', { stepNumber, data }, { headers: getHeaders() }),
+  submitForm: () => api.post('/form/submit', {}, { headers: getHeaders() }),
 };
 
 export default api;

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Input } from '../components/ui/input';
+import { cn } from '../lib/utils';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -81,12 +83,12 @@ const Login = () => {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
-              <input
+              <Input
                 id="email"
                 name="email"
                 type="email"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.email && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
@@ -100,12 +102,12 @@ const Login = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-              <input
+              <Input
                 id="password"
                 name="password"
                 type="password"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.password && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}

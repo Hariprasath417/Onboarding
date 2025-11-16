@@ -1,6 +1,5 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
@@ -14,31 +13,17 @@ const generateToken = (userId) => {
 // @route   POST /api/auth/signup
 // @desc    Register a new user
 // @access  Public
-router.post('/signup', [
-  body('name')
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Name must be between 2 and 50 characters'),
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-], async (req, res) => {
+router.post('/signup', async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { name, email, password } = req.body;
+
+    // Basic validation
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        message: 'Name, email, and password are required'
       });
     }
-
-    const { name, email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -59,14 +44,14 @@ router.post('/signup', [
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user.uuid);
 
     res.status(201).json({
       success: true,
       message: 'User created successfully',
       token,
       user: {
-        id: user._id,
+        id: user.uuid,
         name: user.name,
         email: user.email
       }
@@ -83,27 +68,17 @@ router.post('/signup', [
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
-router.post('/login', [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-], async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { email, password } = req.body;
+
+    // Basic validation
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        message: 'Email and password are required'
       });
     }
-
-    const { email, password } = req.body;
 
     // Find user by email
     const user = await User.findOne({ email });
@@ -124,14 +99,14 @@ router.post('/login', [
     }
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user.uuid);
 
     res.json({
       success: true,
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        id: user.uuid,
         name: user.name,
         email: user.email
       }
@@ -152,7 +127,11 @@ router.get('/me', auth, async (req, res) => {
   try {
     res.json({
       success: true,
-      user: req.user
+      user: {
+        id: req.user.uuid,
+        name: req.user.name,
+        email: req.user.email
+      }
     });
   } catch (error) {
     console.error('Get user error:', error);

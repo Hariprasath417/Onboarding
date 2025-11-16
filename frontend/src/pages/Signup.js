@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Input } from '../components/ui/input';
+import { cn } from '../lib/utils';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -95,12 +97,12 @@ const Signup = () => {
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name
               </label>
-              <input
+              <Input
                 id="name"
                 name="name"
                 type="text"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.name && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChange={handleChange}
@@ -114,12 +116,12 @@ const Signup = () => {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
-              <input
+              <Input
                 id="email"
                 name="email"
                 type="email"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.email && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
@@ -133,12 +135,12 @@ const Signup = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-              <input
+              <Input
                 id="password"
                 name="password"
                 type="password"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.password && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Create a password"
                 value={formData.password}
                 onChange={handleChange}
@@ -152,12 +154,12 @@ const Signup = () => {
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password
               </label>
-              <input
+              <Input
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
                 required
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
+                className={cn(errors.confirmPassword && "border-red-500 focus-visible:ring-red-500")}
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={handleChange}

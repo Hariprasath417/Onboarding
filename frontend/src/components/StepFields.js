@@ -1,6 +1,8 @@
 import React from 'react';
+import HeroSection from './HeroSection';
+import { Input } from './ui/input';
 
-const StepFields = ({ stepNumber, data, onChange }) => {
+const StepFields = ({ stepNumber, data, onChange, user }) => {
   const handleFieldChange = (field, value) => {
     onChange({
       ...data,
@@ -24,9 +26,9 @@ const StepFields = ({ stepNumber, data, onChange }) => {
             
             <div className="space-y-3 sm:space-y-4 max-w-md w-full mx-auto">
               <div>
-                <input
+                <Input
                   type="text"
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full text-sm sm:text-base"
                   placeholder="Your Name"
                   value={data.yourName || ''}
                   onChange={(e) => handleFieldChange('yourName', e.target.value)}
@@ -34,11 +36,11 @@ const StepFields = ({ stepNumber, data, onChange }) => {
               </div>
               
               <div>
-                <input
+                <Input
                   type="text"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full"
                   placeholder="Your Username"
-                  value={data.yourUsername || ''}
+                  value={data.yourUsername || (user?.name || '')}
                   onChange={(e) => handleFieldChange('yourUsername', e.target.value)}
                 />
               </div>
@@ -94,7 +96,7 @@ const StepFields = ({ stepNumber, data, onChange }) => {
           <div className="space-y-4 sm:space-y-6 flex flex-col items-center">
             <div className="text-center px-2">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Hey {data.yourName || 'there'} 👋
+                Hey {user?.name || data.yourName || 'there'} 👋
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mb-4">
                 Let us know, how would you like to use Record for:
@@ -135,12 +137,8 @@ const StepFields = ({ stepNumber, data, onChange }) => {
 
       case 3:
         return (
-          <div className="w-full flex justify-center items-center py-2 sm:py-4">
-            <img 
-              src="/image.png" 
-              alt="Value proposition and testimonial" 
-              className="w-full h-auto object-contain"
-            />
+          <div className="w-full">
+            <HeroSection isEmbedded={true} />
           </div>
         );
 
@@ -156,9 +154,9 @@ const StepFields = ({ stepNumber, data, onChange }) => {
               </p>
               
               <div className="max-w-md w-full mx-auto">
-                <input
+                <Input
                   type="text"
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full text-sm sm:text-base"
                   placeholder="Search Skills i.e figma, front end"
                   value={data.skillSearch || ''}
                   onChange={(e) => handleFieldChange('skillSearch', e.target.value)}
@@ -177,7 +175,7 @@ const StepFields = ({ stepNumber, data, onChange }) => {
                   {data.selectedSkills.map((skill) => (
                     <div
                       key={skill}
-                      className="flex items-center bg-red-500 text-white px-3 py-2 rounded-full text-sm font-medium"
+                      className="flex items-center bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium"
                     >
                       <span>{skill}</span>
                       <button
@@ -185,9 +183,9 @@ const StepFields = ({ stepNumber, data, onChange }) => {
                           const currentSkills = data.selectedSkills || [];
                           handleFieldChange('selectedSkills', currentSkills.filter(s => s !== skill));
                         }}
-                        className="ml-2 text-white hover:text-gray-200"
+                        className="ml-2 text-white hover:text-white rounded-full border border-white/70 hover:border-white bg-transparent hover:bg-white/10 w-6 h-6 flex items-center justify-center"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -217,7 +215,7 @@ const StepFields = ({ stepNumber, data, onChange }) => {
                         handleFieldChange('selectedSkills', [...currentSkills, skill]);
                       }
                     }}
-                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                       data.selectedSkills?.includes(skill)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -252,7 +250,7 @@ const StepFields = ({ stepNumber, data, onChange }) => {
                         handleFieldChange('selectedSkills', [...currentSkills, skill]);
                       }
                     }}
-                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                       data.selectedSkills?.includes(skill)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -305,9 +303,17 @@ const StepFields = ({ stepNumber, data, onChange }) => {
                   onChange={(e) => {
                     const file = e.target.files[0];
                     if (file) {
+                      // Check file size (max 5MB)
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('Image size should be less than 5MB. Please choose a smaller image.');
+                        return;
+                      }
                       const reader = new FileReader();
                       reader.onload = (event) => {
                         handleFieldChange('profileImage', event.target.result);
+                      };
+                      reader.onerror = () => {
+                        alert('Error reading image file. Please try again.');
                       };
                       reader.readAsDataURL(file);
                     }

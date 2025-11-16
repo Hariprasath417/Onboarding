@@ -1,5 +1,4 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
 const FormEntry = require('../models/FormEntry');
 const auth = require('../middleware/auth');
 
@@ -10,11 +9,11 @@ const router = express.Router();
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    let formEntry = await FormEntry.findOne({ userId: req.user._id });
+    let formEntry = await FormEntry.findOne({ userId: req.user.uuid });
     
     if (!formEntry) {
       // Create new form entry if it doesn't exist
-      formEntry = new FormEntry({ userId: req.user._id });
+      formEntry = new FormEntry({ userId: req.user.uuid });
       await formEntry.save();
     }
 
@@ -23,7 +22,7 @@ router.get('/', auth, async (req, res) => {
       formEntry: {
         id: formEntry._id,
         userId: formEntry.userId,
-        steps: Object.fromEntries(formEntry.steps),
+        steps: formEntry.steps,
         completed: formEntry.completed,
         completedAt: formEntry.completedAt,
         createdAt: formEntry.createdAt,
@@ -53,14 +52,14 @@ router.get('/step/:stepNumber', auth, async (req, res) => {
       });
     }
 
-    let formEntry = await FormEntry.findOne({ userId: req.user._id });
+    let formEntry = await FormEntry.findOne({ userId: req.user.uuid });
     
     if (!formEntry) {
-      formEntry = new FormEntry({ userId: req.user._id });
+      formEntry = new FormEntry({ userId: req.user.uuid });
       await formEntry.save();
     }
 
-    const stepData = formEntry.getStep(stepNumber);
+    const stepData = formEntry.steps[stepNumber] || {};
 
     res.json({
       success: true,
@@ -79,49 +78,54 @@ router.get('/step/:stepNumber', auth, async (req, res) => {
 // @route   POST /api/form/step
 // @desc    Update step data
 // @access  Private
-router.post('/step', [
-  auth,
-  body('stepNumber')
-    .isInt({ min: 1, max: 8 })
-    .withMessage('Step number must be between 1 and 8'),
-  body('data')
-    .isObject()
-    .withMessage('Data must be an object')
-], async (req, res) => {
+router.post('/step', auth, async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { stepNumber, data } = req.body;
+
+    // Basic validation
+    if (!stepNumber || stepNumber < 1 || stepNumber > 8) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        message: 'Step number must be between 1 and 8'
       });
     }
 
-    const { stepNumber, data } = req.body;
-
-    // Find or create form entry
-    let formEntry = await FormEntry.findOne({ userId: req.user._id });
-    
-    if (!formEntry) {
-      formEntry = new FormEntry({ userId: req.user._id });
+    if (!data || typeof data !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Data must be an object'
+      });
     }
 
-    // Update step data
-    await formEntry.updateStep(stepNumber, data);
+    // Find or create form entry
+    let formEntry = await FormEntry.findOne({ userId: req.user.uuid });
+    
+    if (!formEntry) {
+      formEntry = new FormEntry({ userId: req.user.uuid });
+    }
+
+    // Merge new data with existing step data instead of replacing
+    const existingStepData = formEntry.steps[stepNumber] || {};
+    formEntry.steps[stepNumber] = {
+      ...existingStepData,
+      ...data
+    };
+    
+    // Mark steps as modified so Mongoose saves it
+    formEntry.markModified('steps');
+    await formEntry.save();
 
     res.json({
       success: true,
       message: 'Step data saved successfully',
       stepNumber,
-      data: formEntry.getStep(stepNumber)
+      data: formEntry.steps[stepNumber]
     });
   } catch (error) {
     console.error('Update step error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: error.message || 'Server error'
     });
   }
 });
@@ -131,7 +135,7 @@ router.post('/step', [
 // @access  Private
 router.post('/submit', auth, async (req, res) => {
   try {
-    let formEntry = await FormEntry.findOne({ userId: req.user._id });
+    let formEntry = await FormEntry.findOne({ userId: req.user.uuid });
     
     if (!formEntry) {
       return res.status(404).json({
@@ -141,7 +145,9 @@ router.post('/submit', auth, async (req, res) => {
     }
 
     // Mark as completed
-    await formEntry.markCompleted();
+    formEntry.completed = true;
+    formEntry.completedAt = new Date();
+    await formEntry.save();
 
     res.json({
       success: true,
@@ -149,7 +155,7 @@ router.post('/submit', auth, async (req, res) => {
       formEntry: {
         id: formEntry._id,
         userId: formEntry.userId,
-        steps: Object.fromEntries(formEntry.steps),
+        steps: formEntry.steps,
         completed: formEntry.completed,
         completedAt: formEntry.completedAt
       }
@@ -158,7 +164,7 @@ router.post('/submit', auth, async (req, res) => {
     console.error('Submit form error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: error.message || 'Server error'
     });
   }
 });

@@ -2,6 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { formAPI } from '../services/api';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger
+} from '../components/ui/sidebar';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -54,6 +67,7 @@ const Dashboard = () => {
   }
 
   return (
+    <SidebarProvider>
     <div className="min-h-screen bg-gray-100 flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
@@ -64,26 +78,24 @@ const Dashboard = () => {
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-50 shadow-sm flex flex-col transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
+      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen}>
         {/* Logo - Orange Block */}
-        <div className="h-16 bg-orange-500 flex items-center justify-between px-4 lg:justify-center">
-          <span className="text-white font-bold text-lg hidden lg:inline">Record</span>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="bg-orange-500">
+          <SidebarHeader className="justify-between lg:justify-center">
+            <span className="text-white font-bold text-lg hidden lg:inline">Record</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </SidebarHeader>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col px-4 pt-6 pb-4">
+        <SidebarContent>
           {/* Main Navigation */}
           <div className="space-y-2 flex-1">
             <a
@@ -158,61 +170,45 @@ const Dashboard = () => {
               <h3 className="px-3 text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                 TOOLS
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-1 ml-6 border-l border-gray-200 pl-3">
                 <a
                   href="#"
                   onClick={() => setSidebarOpen(false)}
-                  className="flex items-center px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg whitespace-nowrap"
                 >
-                  <svg className="w-5 h-5 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
                   YouTube to Course
                 </a>
                 <a
                   href="#"
                   onClick={() => setSidebarOpen(false)}
-                  className="flex items-center px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg whitespace-nowrap"
                 >
-                  <svg className="w-5 h-5 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
                   One Click Resume
                 </a>
                 <a
                   href="#"
                   onClick={() => setSidebarOpen(false)}
-                  className="flex items-center px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg whitespace-nowrap"
                 >
-                  <svg className="w-5 h-5 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
                   AI Assessment
-                </a>
-                <a
-                  href="#"
-                  className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  <svg className="w-5 h-5 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Setup
-                  <span className="ml-auto text-sm text-gray-500">56%</span>
                 </a>
               </div>
             </div>
+            {/* Setup - outside Tools */}
+            <a
+              href="#"
+              className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              <svg className="w-5 h-5 mr-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Setup
+              <span className="ml-auto text-sm text-gray-500">56%</span>
+            </a>
           </div>
 
           {/* Separator */}
@@ -244,7 +240,6 @@ const Dashboard = () => {
                 Feedback
               </a>
             </div>
-
             <div className="mt-4 px-3 text-xs text-gray-500">
               <div className="space-y-1">
                 <div>Privacy Policy | Terms & Conditions</div>
@@ -252,8 +247,8 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-        </nav>
-      </div>
+        </SidebarContent>
+      </Sidebar>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-white w-full lg:w-auto">
@@ -261,14 +256,7 @@ const Dashboard = () => {
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center space-x-3 sm:space-x-4">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
+              <SidebarTrigger onClick={() => setSidebarOpen(true)} />
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
             </div>
 
@@ -449,6 +437,7 @@ const Dashboard = () => {
         </main>
       </div>
     </div>
+    </SidebarProvider>
   );
 };
 
