@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { formAPI } from '../services/api';
+// import { formAPI } from '../services/api';
 import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
@@ -19,25 +18,14 @@ import {
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
-    const loadFormData = async () => {
-      try {
-        const response = await formAPI.getForm();
-        setFormData(response.data.formEntry);
-      } catch (error) {
-        console.error('Error loading form data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadFormData();
+    // Initial loading state – extend when real data is needed
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
