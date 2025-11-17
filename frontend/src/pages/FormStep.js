@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { formAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,67 +15,130 @@ const FormStep = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const saveStepData = useCallback(async () => {
-    try {
-      await formAPI.updateStep(currentStep, formData);
-    } catch (err) {
-      console.error('Error saving step data:', err);
-      // Don't show error for auto-save, only log it
-    }
-  }, [currentStep, formData]);
+  // Refs for debounce, last saved content and in-flight controller
+  const saveTimerRef = useRef(null);
+  const lastSavedRef = useRef(null); // stores JSON string of last-saved data per step
+  const inFlightControllerRef = useRef(null);
+  const loadControllerRef = useRef(null);
 
+  // load step data (cancellable)
   useEffect(() => {
+    if (!(currentStep >= 1 && currentStep <= 5)) {
+      navigate('/form/1');
+      return;
+    }
+
+    // cancel any previous load request
+    if (loadControllerRef.current) {
+      loadControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    loadControllerRef.current = controller;
+
     const loadStepData = async () => {
       try {
         setIsLoading(true);
-        const response = await formAPI.getStep(currentStep);
+        const response = await formAPI.getStep(currentStep, { signal: controller.signal });
         const loadedData = response.data.data || {};
-        
+
         // Pre-fill username in step 1 if user is logged in and username is not already set
         if (currentStep === 1 && user && !loadedData.yourUsername) {
           loadedData.yourUsername = user.name;
         }
-        
+
         setFormData(loadedData);
+        // set lastSavedRef for this loaded state (so autosave won't resend same content)
+        lastSavedRef.current = JSON.stringify(loadedData || {});
         setError(null);
       } catch (err) {
-        console.error('Error loading step data:', err);
-        setError('Failed to load form data');
+        if (err.name === 'CanceledError' || err.name === 'AbortError') {
+          // aborted — ignore
+        } else {
+          console.error('Error loading step data:', err);
+          setError('Failed to load form data');
+        }
       } finally {
         setIsLoading(false);
+        loadControllerRef.current = null;
       }
     };
 
-    if (currentStep >= 1 && currentStep <= 5) {
-      loadStepData();
-    } else {
-      navigate('/form/1');
-    }
+    loadStepData();
+
+    return () => {
+      if (loadControllerRef.current) loadControllerRef.current.abort();
+    };
   }, [currentStep, navigate, user]);
 
+  // saveStepData with dedupe and cancellation
+  const saveStepData = useCallback(
+    async (payload) => {
+      const payloadObj = payload || formData;
+      // avoid saving empty/initial objects
+      if (!payloadObj || Object.keys(payloadObj).length === 0) return;
+
+      const payloadStr = JSON.stringify(payloadObj);
+      if (lastSavedRef.current === payloadStr) {
+        // nothing changed since last save
+        return;
+      }
+
+      // cancel previous in-flight save
+      if (inFlightControllerRef.current) {
+        inFlightControllerRef.current.abort();
+        inFlightControllerRef.current = null;
+      }
+      const controller = new AbortController();
+      inFlightControllerRef.current = controller;
+
+      try {
+        await formAPI.updateStep(currentStep, payloadObj, { signal: controller.signal });
+        lastSavedRef.current = payloadStr;
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') {
+          // canceled — ignore
+        } else {
+          console.error('Error saving step data:', err);
+          // we don't set UI error here for autosave, only log — keep UX smooth
+        }
+      } finally {
+        inFlightControllerRef.current = null;
+      }
+    },
+    [currentStep, formData]
+  );
+
+  // Debounced autosave effect
   useEffect(() => {
     // Don't auto-save while loading
     if (isLoading) return;
-    
+
     // Don't auto-save if formData is empty
-    if (Object.keys(formData).length === 0) return;
+    if (!formData || Object.keys(formData).length === 0) return;
 
-    const timeoutId = setTimeout(() => {
-      saveStepData();
-    }, 1000);
+    // clear previous timer
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-    return () => clearTimeout(timeoutId);
+    saveTimerRef.current = setTimeout(() => {
+      saveStepData(formData);
+      saveTimerRef.current = null;
+    }, 1000); // 1s debounce
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [formData, isLoading, saveStepData]);
 
   // Pre-fill username when user becomes available and we're on step 1
   useEffect(() => {
     if (currentStep === 1 && user?.name && !formData.yourUsername && !isLoading) {
-      setFormData(prevData => ({
-        ...prevData,
-        yourUsername: user.name
-      }));
+      setFormData((prevData) => {
+        const next = { ...prevData, yourUsername: user.name };
+        // reflect that this is a new change (do not immediately mark as lastSaved)
+        return next;
+      });
     }
-  }, [user?.name, currentStep, isLoading]);
+  }, [user?.name, currentStep, isLoading]); // we purposely don't include formData here to avoid loops
 
   const handleFieldChange = (newData) => {
     setFormData(newData);
@@ -105,6 +168,29 @@ const FormStep = () => {
     }
   };
 
+  const flushPendingAutosave = async () => {
+    // cancel timeout and perform a final save if needed
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    // If a save is in-flight, wait for it to finish; otherwise trigger saveStepData
+    if (inFlightControllerRef.current) {
+      // wait briefly until in-flight resolves (or cancel it)
+      try {
+        // cancel in-flight and then do a fresh save to ensure latest data is persisted
+        inFlightControllerRef.current.abort();
+        inFlightControllerRef.current = null;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // perform a synchronous final save
+    await saveStepData(formData);
+  };
+
   const handleNext = async () => {
     if (!validateCurrentStep()) {
       setError('Please fill in all required fields');
@@ -114,7 +200,8 @@ const FormStep = () => {
     try {
       setIsSaving(true);
       setError(null);
-      await formAPI.updateStep(currentStep, formData);
+
+      await flushPendingAutosave();
 
       if (currentStep === 5) {
         await formAPI.submitForm();
@@ -136,7 +223,9 @@ const FormStep = () => {
       try {
         setIsSaving(true);
         setError(null);
-        await formAPI.updateStep(currentStep, formData);
+
+        await flushPendingAutosave();
+
         navigate(`/form/${currentStep - 1}`);
       } catch (err) {
         console.error('Error saving form data:', err);
@@ -160,7 +249,7 @@ const FormStep = () => {
     <div className={`min-h-screen flex flex-col ${currentStep === 3 ? 'bg-blue-50' : 'bg-gray-100'}`}>
       {/* Blue line at top */}
       <div className="h-1 bg-blue-500"></div>
-      
+
       {/* Header with progress bar */}
       <div className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
@@ -171,12 +260,7 @@ const FormStep = () => {
               className="flex items-center text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               <span className="hidden sm:inline">Back</span>
             </button>
@@ -189,10 +273,7 @@ const FormStep = () => {
                     style={{ width: `${(currentStep / 5) * 100}%` }}
                   />
                 </div>
-                <div
-                  className="absolute top-0 transform -translate-y-1"
-                  style={{ left: `${(currentStep / 5) * 100}%` }}
-                >
+                <div className="absolute top-0 transform -translate-y-1" style={{ left: `${(currentStep / 5) * 100}%` }}>
                   <div className="w-3 h-3 bg-gray-800 rounded-full" />
                 </div>
               </div>

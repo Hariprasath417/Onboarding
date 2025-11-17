@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// src/contexts/AuthContext.js
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -8,29 +9,51 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('authToken'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const controllerRef = useRef(null);
 
-  // Check if user is logged in on app start
+  // Check if user is logged in on app start (cancellable)
   useEffect(() => {
     const checkAuth = async () => {
       const savedToken = localStorage.getItem('authToken');
-      if (savedToken) {
-        try {
-          setLoading(true);
-          const response = await authAPI.getMe();
-          setUser(response.data.user);
-          setToken(savedToken);
-          setError(null);
-        } catch (error) {
+      if (!savedToken) {
+        setLoading(false);
+        return;
+      }
+
+      // cancel previous controller if any
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      controllerRef.current = controller;
+
+      try {
+        setLoading(true);
+        const response = await authAPI.getMe({ signal: controller.signal });
+        setUser(response.data.user || null);
+        setToken(savedToken);
+        setError(null);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') {
+          // aborted — ignore
+        } else {
           localStorage.removeItem('authToken');
           setUser(null);
           setToken(null);
-          setError(error.response?.data?.message || 'Authentication failed');
+          setError(err.response?.data?.message || 'Authentication failed');
         }
+      } finally {
+        setLoading(false);
+        controllerRef.current = null;
       }
-      setLoading(false);
     };
 
     checkAuth();
+
+    // cleanup on unmount
+    return () => {
+      if (controllerRef.current) controllerRef.current.abort();
+    };
   }, []);
 
   const login = async (credentials) => {
@@ -38,16 +61,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await authAPI.login(credentials);
-      const { token, user } = response.data;
-      
-      localStorage.setItem('authToken', token);
-      setUser(user);
-      setToken(token);
+      const { token: newToken, user: loggedUser } = response.data;
+
+      localStorage.setItem('authToken', newToken);
+      setUser(loggedUser);
+      setToken(newToken);
       setLoading(false);
-      
+
       return { success: true };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Login failed';
       setUser(null);
       setToken(null);
       setError(errorMessage);
@@ -61,16 +84,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await authAPI.signup(userData);
-      const { token, user } = response.data;
-      
-      localStorage.setItem('authToken', token);
-      setUser(user);
-      setToken(token);
+      const { token: newToken, user: newUser } = response.data;
+
+      localStorage.setItem('authToken', newToken);
+      setUser(newUser);
+      setToken(newToken);
       setLoading(false);
-      
+
       return { success: true };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Signup failed';
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Signup failed';
       setUser(null);
       setToken(null);
       setError(errorMessage);
@@ -80,6 +103,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // cancel any outstanding auth request
+    if (controllerRef.current) controllerRef.current.abort();
+
     localStorage.removeItem('authToken');
     setUser(null);
     setToken(null);
@@ -102,11 +128,7 @@ export const AuthProvider = ({ children }) => {
     clearError,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
